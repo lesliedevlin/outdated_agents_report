@@ -1,8 +1,8 @@
 # WARNING: This script takes a long time to execute if you have a high count
 #          of active servers.
 # Authors: Leslie Devlin and Sean Nicholson
-# Version 1.0.0
-# Date 05.17.2017
+# Version 2.0.0
+# Date 06.06.2017
 ##############################################################################
 
 # Import Python Modules
@@ -55,6 +55,56 @@ def get_access_token(url, query_string, headers):
             time.sleep(30)
 
 
+# get root group info
+
+
+# start file for writing
+def start_csv_file(file_name, data):
+    field_names = ['Hostname', 'Halo Agent Version', 'Agent Started At', 'OS Name', 
+                   'OS Version', 'OS Distribution', 'OS Architecture', 'OS Service Pack',
+                   'Group Name', 'Group ID']
+    with open(file_name, 'w') as outfile:
+        writer = csv.DictWriter(outfile, fieldnames=field_names)
+        writer.writeheader()
+        for row in data:
+            writer.writerow(row)
+            print row
+
+# append 
+def append_csv_file(file_name, data):
+    field_names = ['Hostname', 'Halo Agent Version', 'Agent Started At', 'OS Name', 
+                   'OS Version', 'OS Distribution', 'OS Architecture', 'OS Service Pack',
+                   'Group Name', 'Group ID']
+    with open(file_name, 'a') as outfile:
+        writer = csv.DictWriter(outfile, fieldnames=field_names)
+        for row in data:
+            writer.writerow(row)
+            print row
+
+
+# 
+def gen_servers_report(group_reply,out_file):
+    # count servers - if 0, then remove file
+    server_count=0
+    for server in group_reply:
+        if server:
+            row = {'Hostname':server['hostname'],
+                   'Halo Agent Version':server['agent_version'],
+                   'Agent Started At':server['agent_started_at'],
+                   'OS Name':server['os_name'],
+                   'OS Version':server['os_version'],
+                   'OS Distribution':server['os_distribution'],
+                   'OS Architecture':server['os_architecture'],
+                   'OS Service Pack':server['os_servicepack'],
+                   'Group Name':server['group_name'],
+                   'Group ID':server['group_id']}
+            server_count += 1
+            append_csv_file(out_file, [row])
+    if server_count == 0:
+        os.remove(out_file)
+        print "No outdated agents present. File %s removed.\n\n" % out_file
+
+
 # Query Halo API /v1/groups to get list of groups to generate reports for
 def get_halo_groups(session):
     old_agent_count = 0
@@ -64,39 +114,48 @@ def get_halo_groups(session):
     with open('cloudpassage.yml') as config_settings:
         script_options_info = yaml.load(config_settings)
         root_group_id = script_options_info['defaults']['root_group_id']
-    group_reply=get_halo_groups_list.get_paginated("/v2/groups?parent_id=" + root_group_id + "&descendants=true","groups",15)
-    halo_group_id_list=[]
-    halo_server_id_list=[]
-    for group in group_reply:
-        halo_group_id_list.append({'group_id':group['id'], 'group_name': group['name']})
+
+    # write report for top level group
+    get_halo_servers_list = cloudpassage.HttpHelper(session)
+    root_group_reply=get_halo_servers_list.get_paginated("/v2/servers?group_id=" + root_group_id + "&state=active&agent_version_lt=3.9.7&descendants=false","servers",30)
+    out_file = "reports/Agents_Report_Ungrouped_" + time.strftime("%Y%m%d") + ".csv"
+    start_csv_file(out_file, [])
+    gen_servers_report(root_group_reply,out_file)
+
+    # write reports for subgroups 
+    subgroup_reply=get_halo_groups_list.get_paginated("/v2/groups?parent_id=" + root_group_id + "&descendants=true","groups",15)
+    for group in subgroup_reply:
         group_id = group['id']
         group_name = group['name']
-        # print "Group %s is %s" % (group_name, group_id)
+        print "\nGroup %s:\n" % group['name']
 
-        # create report file
         out_file = "reports/Agents_Report_" + group_name + "_" + time.strftime("%Y%m%d") + ".csv"
-        ofile  = open(out_file, "w")
+        start_csv_file(out_file, [])
         get_halo_servers_list = cloudpassage.HttpHelper(session)
         servers_reply=get_halo_servers_list.get_paginated("/v2/servers?group_id=" + group_id + "&state=active&agent_version_lt=3.9.7&descendants=true","servers",30)
-        ofile.write('Hostname,Halo Agent Version,Agent Started At,OS Name,OS Version,OS Distribution,OS Architecture,OS Service Pack,Group Name,Group ID\n')
         # count servers - if 0, then remove file
         server_count=0
         for server in servers_reply:
             if server:
-                row="'{0}',{1},{2},{3},{4},{5},{6},{7},{8},{9}\n".format(server['hostname'],server['agent_version'],server['agent_started_at'],server['os_name'],server['os_version'],server['os_distribution'],server['os_architecture'],server['os_servicepack'],server['group_name'],server['group_id'])
-                # print row
+                row = {'Hostname':server['hostname'],
+                       'Halo Agent Version':server['agent_version'],
+                       'Agent Started At':server['agent_started_at'],
+                       'OS Name':server['os_name'],
+                       'OS Version':server['os_version'],
+                       'OS Distribution':server['os_distribution'],
+                       'OS Architecture':server['os_architecture'],
+                       'OS Service Pack':server['os_servicepack'],
+                       'Group Name':server['group_name'],
+                       'Group ID':server['group_id']}
                 server_count += 1
-                ofile.write(row)
-                ofile.close()
+                append_csv_file(out_file, [row])
         if server_count == 0:
             os.remove(out_file)
-            # print "No outdated agents present. File %s removed.\n" % out_file
-
-#    halo_group_id_list = byteify(halo_group_id_list)
-#    print halo_group_id_list
-#    return halo_group_id_list
+            print "No outdated agents present. File %s removed.\n\n" % out_file
 
 
+
+### MAIN
 
 if __name__ == "__main__":
     api_session = None
