@@ -1,7 +1,7 @@
 # WARNING: This script takes a long time to execute if you have a high count
 #          of active servers.
-# Authors: Leslie Devlin and Sean Nicholson
-# Version 2.0.0
+# Author: Leslie Devlin 
+# Version 2.1.0
 # Date 06.06.2017
 ##############################################################################
 
@@ -56,6 +56,18 @@ def get_access_token(url, query_string, headers):
 
 
 # get root group info
+def get_root_group_id(session):
+    get_root_id = cloudpassage.HttpHelper(session)
+    root_id_reply=get_root_id.get_paginated("/v2/groups","groups",30)
+    return_value = ''
+    for group in root_id_reply:
+        group_name = group['name']
+        group_id = group['id']
+        parent_id = group['parent_id']
+        if parent_id == None:
+            return_value = group_id
+            break
+    return return_value
 
 
 # start file for writing
@@ -68,7 +80,8 @@ def start_csv_file(file_name, data):
         writer.writeheader()
         for row in data:
             writer.writerow(row)
-            print row
+#            print row
+
 
 # append 
 def append_csv_file(file_name, data):
@@ -79,7 +92,7 @@ def append_csv_file(file_name, data):
         writer = csv.DictWriter(outfile, fieldnames=field_names)
         for row in data:
             writer.writerow(row)
-            print row
+#            print row
 
 
 # 
@@ -102,7 +115,7 @@ def gen_servers_report(group_reply,out_file):
             append_csv_file(out_file, [row])
     if server_count == 0:
         os.remove(out_file)
-        print "No outdated agents present. File %s removed.\n\n" % out_file
+#        print "No outdated agents present. File %s removed.\n\n" % out_file
 
 
 # Query Halo API /v1/groups to get list of groups to generate reports for
@@ -111,13 +124,17 @@ def get_halo_groups(session):
     if not os.path.exists("reports"):
           os.makedirs("reports")
     get_halo_groups_list = cloudpassage.HttpHelper(session)
-    with open('cloudpassage.yml') as config_settings:
-        script_options_info = yaml.load(config_settings)
-        root_group_id = script_options_info['defaults']['root_group_id']
+
+    root_group_id = get_root_group_id(session)
+    print root_group_id
+ 
+    # Set agent_version to the highest version you wish to report on.
+    # Default is 3.9.7
+    agent_version = '4.0.0'
 
     # write report for top level group
     get_halo_servers_list = cloudpassage.HttpHelper(session)
-    root_group_reply=get_halo_servers_list.get_paginated("/v2/servers?group_id=" + root_group_id + "&state=active&agent_version_lt=3.9.7&descendants=false","servers",30)
+    root_group_reply=get_halo_servers_list.get_paginated("/v2/servers?group_id=" + root_group_id + "&state=active&agent_version_lt=" + agent_version + "&descendants=false","servers",30)
     out_file = "reports/Agents_Report_Ungrouped_" + time.strftime("%Y%m%d") + ".csv"
     start_csv_file(out_file, [])
     gen_servers_report(root_group_reply,out_file)
@@ -127,31 +144,14 @@ def get_halo_groups(session):
     for group in subgroup_reply:
         group_id = group['id']
         group_name = group['name']
-        print "\nGroup %s:\n" % group['name']
+#        print "\nGroup %s:\n" % group['name']
 
         out_file = "reports/Agents_Report_" + group_name + "_" + time.strftime("%Y%m%d") + ".csv"
         start_csv_file(out_file, [])
         get_halo_servers_list = cloudpassage.HttpHelper(session)
-        servers_reply=get_halo_servers_list.get_paginated("/v2/servers?group_id=" + group_id + "&state=active&agent_version_lt=3.9.7&descendants=true","servers",30)
-        # count servers - if 0, then remove file
-        server_count=0
-        for server in servers_reply:
-            if server:
-                row = {'Hostname':server['hostname'],
-                       'Halo Agent Version':server['agent_version'],
-                       'Agent Started At':server['agent_started_at'],
-                       'OS Name':server['os_name'],
-                       'OS Version':server['os_version'],
-                       'OS Distribution':server['os_distribution'],
-                       'OS Architecture':server['os_architecture'],
-                       'OS Service Pack':server['os_servicepack'],
-                       'Group Name':server['group_name'],
-                       'Group ID':server['group_id']}
-                server_count += 1
-                append_csv_file(out_file, [row])
-        if server_count == 0:
-            os.remove(out_file)
-            print "No outdated agents present. File %s removed.\n\n" % out_file
+        servers_reply=get_halo_servers_list.get_paginated("/v2/servers?group_id=" + group_id + "&state=active&agent_version_lt=" + agent_version + "&descendants=true","servers",30)
+        gen_servers_report(servers_reply,out_file)
+
 
 
 

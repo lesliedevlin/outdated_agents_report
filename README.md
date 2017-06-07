@@ -1,5 +1,5 @@
-# server_count_percentages
-CloudPassage Halo Server Count Percentages report
+# halo_outdated_agents_report
+CloudPassage Halo Outdated Agents Report
 
 Disclaimer: This script is provided as is. USE AT YOUR OWN RISK.
 NOT A SUPPORTED SOLUTION
@@ -9,10 +9,6 @@ To configure script add API Key information to cloudpassage.yml File
 >key_id: your_api_key_id
 >secret_key: your_api_secret_key
 
-In cloudpassage.yml, set root_group_id to the group ID of your top-level group.
-This ID is a 32-character string that will appear in your URL after you log in, e.g.:
-
-https://portal.cloudpassage.com/halo/environment/group/<group-ID>/summary
 
 # Requirements
 
@@ -26,15 +22,22 @@ This script requires the Requests Python module.
 Install from pip with pip install cloudpassage. If you want to make modification
 s to the SDK you can install it in editable mode by downloading the source from 
 this github repo, navigating to the top directory within the archive and running
- pip install -e . (note the . at the end). Or you can visit https://github.com/c
-loudpassage/cloudpassage-halo-python-sdk to clone it directly from our github.
+ pip install -e .
+(note the . at the end).
+Or you can visit https://github.com/cloudpassage/cloudpassage-halo-python-sdk to
+clone it directly from our github.
 
 
 # Running
 
-Run python server_count_percentages.py to generate a single .csv report of your organization's agent usage at the time you run the script. This script assumes that groups immediately below the root group represent business units and reports on the agent usage as a percentage of total account usage.  This can be used for estimating billbacks as well as general account usage auditing.
+Run python halo_outdated_agents_report.py to generate reports of outdated agents in
+your account.  This script assumes that groups immediately below the root group
+represent business units and creates a separate report for each BU (including its
+descendant groups).
 
-
+By default, the script looks for servers with agent version 3.9.7 and earlier.
+You can change this by setting the agent_version variable to the version you
+wish to look for.
 
 # License
 

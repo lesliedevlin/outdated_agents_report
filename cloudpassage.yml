@@ -1,6 +1,5 @@
 defaults:
-    key_id: ''
-    secret_key: ''
+    key_id: '12345678'
+    secret_key: 'abcd1234abcd1234abcd1234abcd1234'
     api_hostname: "api.cloudpassage.com"
     api_port: 443
-    root_group_id: ''
