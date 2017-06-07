@@ -1,8 +1,8 @@
 # WARNING: This script takes a long time to execute if you have a high count
 #          of active servers.
 # Author: Leslie Devlin 
-# Version 2.1.0
-# Date 06.06.2017
+# Version 2.1.1
+# Date 06.07.2017
 ##############################################################################
 
 # Import Python Modules
@@ -126,7 +126,6 @@ def get_halo_groups(session):
     get_halo_groups_list = cloudpassage.HttpHelper(session)
 
     root_group_id = get_root_group_id(session)
-    print root_group_id
  
     # Set agent_version to the highest version you wish to report on.
     # Default is 3.9.7
